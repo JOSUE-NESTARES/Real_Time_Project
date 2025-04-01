@@ -1,0 +1,120 @@
+version: '3.8'
+
+networks:
+  kafka_mysql_net:
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka_mysql_net
+
+  kafka_server_1:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka_server_1
+    restart: always
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_server_1:9091
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9091
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9091:9091"
+    networks:
+      - kafka_mysql_net
+
+  kafka_server_2:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka_server_2
+    restart: always
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_server_2:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    networks:
+      - kafka_mysql_net
+
+  kafka_server_3:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka_server_3
+    restart: always
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_server_3:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9093:9093"
+    networks:
+      - kafka_mysql_net
+
+  mysql:
+    build: ./mysql/
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    networks:
+      - kafka_mysql_net
+
+  debezium:
+    image: debezium/connect:2.5
+    container_name: debezium
+    restart: always
+    depends_on:
+      - kafka_server_1
+      - kafka_server_2
+      - kafka_server_3
+      - mysql
+    environment:
+      BOOTSTRAP_SERVERS: "kafka_server_1:9091,kafka_server_2:9092,kafka_server_3:9093"
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: "debezium_connect_configs"
+      OFFSET_STORAGE_TOPIC: "debezium_connect_offsets"
+      STATUS_STORAGE_TOPIC: "debezium_connect_statuses"
+      DATABASE_HOSTNAME: "172.18.0.2" 
+      DATABASE_PORT: "3306"
+      DATABASE_USER: "root"  
+      DATABASE_PASSWORD: "root"
+      DATABASE_SERVER_ID: "223344"  # Debe ser único
+      DATABASE_SERVER_NAME: "netflix"
+      DATABASE_HISTORY_KAFKA_BOOTSTRAP_SERVERS: "kafka_server_1:9091,kafka_server_2:9092,kafka_server_3:9093"
+      DATABASE_HISTORY_KAFKA_TOPIC: "dbhistory.mysql"
+    ports:
+      - "8083:8083"
+    networks:
+    - kafka_mysql_net
+
+  
+
+
